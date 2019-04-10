@@ -1,0 +1,144 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Create_Authentication_Body": {
+                "inputs": "client_id=@{body('Parse_JSON')?['applicationId']}&client_secret=@{body('Parse_JSON')?['clientSecret']}&grant_type=client_credentials&resource=https://management.azure.com",
+                "runAfter": {
+                    "Parse_JSON": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Compose"
+            },
+            "Create_Authentication_Header_-Initialize_variable_step": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "bearertoken",
+                            "type": "String",
+                            "value": "@{concat('Bearer ',body('Request_Authentication_Token')['access_token'])}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Request_Authentication_Token": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Invoke_REST_API_-_For_backup": {
+                "inputs": {
+                    "authentication": {
+                        "type": "Raw",
+                        "value": "@variables('bearertoken')"
+                    },
+                    "body": {
+                        "accessKey": "@{body('Parse_JSON')?['accessKey']}",
+                        "backupname": "@{body('Parse_JSON')?['backupName']}",
+                        "containerName": "@{body('Parse_JSON')?['containerName']}",
+                        "storageAccount": "@{body('Parse_JSON')?['storageAccount']}"
+                    },
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "uri": "https://management.azure.com/subscriptions/@{body('Parse_JSON')?['subscriptionId']}/resourceGroups/@{body('Parse_JSON')?['resourceGroup']}/providers/Microsoft.ApiManagement/service/@{body('Parse_JSON')?['apimInstance']}/@{body('Parse_JSON')?['operation']}?api-version=2014-02-14"
+                },
+                "runAfter": {
+                    "Create_Authentication_Header_-Initialize_variable_step": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "Parse_JSON": {
+                "inputs": {
+                    "content": {
+                        "accessKey": "StorageAccountAccessKey-you created in Dr region resource group",
+                        "apimInstance": "name of primary region API M instance",
+                        "applicationId": "Service prinipal application ID",
+                        "backupName": "Name of the backup file.",
+                        "clientSecret": "Service principal secret Key",
+                        "containerName": "name of the container you added in storage account.",
+                        "operation": "backup",
+                        "resourceGroup": "Resource group name of primary region where primary API M instance is present",
+                        "storageAccount": "name of the storage account created  in DR region resource group",
+                        "subscriptionId": "Your Azure subscirpiotn ID",
+                        "tenantId": "Your Azure AD tenant ID"
+                    },
+                    "schema": {
+                      "properties": {
+                        "accessKey": {
+                          "type": "string"
+                        },
+                        "apimInstance": {
+                          "type": "string"
+                        },
+                        "applicationId": {
+                          "type": "string"
+                        },
+                        "backupName": {
+                          "type": "string"
+                        },
+                        "clientSecret": {
+                          "type": "string"
+                        },
+                        "containerName": {
+                          "type": "string"
+                        },
+                        "operation": {
+                          "type": "string"
+                        },
+                        "resourceGroup": {
+                          "type": "string"
+                        },
+                        "storageAccount": {
+                          "type": "string"
+                        },
+                        "subscriptionId": {
+                          "type": "string"
+                        },
+                        "tenantId": {
+                          "type": "string"
+                        }
+                      },
+                        "type": "object"
+                    }
+                },
+                "runAfter": {},
+                "type": "ParseJson"
+            },
+            "Request_Authentication_Token": {
+                "inputs": {
+                    "body": "@outputs('Create_Authentication_Body')",
+                    "headers": {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    "method": "POST",
+                    "uri": "https://login.microsoftonline.com/@{body('Parse_JSON')?['tenantId']}/oauth2/token"
+                },
+                "runAfter": {
+                    "Create_Authentication_Body": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {},
+        "triggers": {
+            "Recurrence": {
+                "recurrence": {
+                    "frequency": "Minute",
+                    "interval": 3,
+                    "timeZone": "India Standard Time"
+                },
+                "type": "Recurrence"
+            }
+        }
+    }
+}
